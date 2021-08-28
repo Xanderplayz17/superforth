@@ -58,6 +58,8 @@ const int scanner_read_tok(scanner_t* scanner) {
 			SET_TOK_TYPE(TOK_TYPECHECK_PROC);
 		case 229476388586812: //nothing
 			SET_TOK_TYPE(TOK_NOTHING);
+		case 229466949743394: //generic
+			SET_TOK_TYPE(TOK_GENERIC_PARAM);
 		case 6385058142: //auto
 			SET_TOK_TYPE(TOK_AUTO);
 		case 6953552265174: //global

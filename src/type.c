@@ -21,6 +21,7 @@ void free_typecheck_type(typecheck_type_t* typecheck_type) {
 const int copy_typecheck_type(typecheck_type_t* dest, typecheck_type_t src) {
 	dest->type = src.type;
 	dest->sub_type_count = src.sub_type_count;
+	dest->id = src.id;
 	if (src.sub_type_count) {
 		ESCAPE_ON_NULL(dest->sub_types = malloc(src.sub_type_count * sizeof(typecheck_type_t)));
 		for (uint_fast8_t i = 0; i < src.sub_type_count; i++)
@@ -40,6 +41,8 @@ const int type_decl_sub_type(typecheck_type_t* super_type, typecheck_type_t sub_
 }
 
 const int typecheck_type_compatible(typecheck_type_t target_type, typecheck_type_t match_type) {
+	if (target_type.type == TYPE_GENERIC_PARAM && match_type.type == TYPE_GENERIC_PARAM)
+		return target_type.id == match_type.id;
 	if (target_type.type < TYPE_SUPER_ARRAY)
 		return target_type.type == match_type.type;
 	else {
@@ -50,4 +53,15 @@ const int typecheck_type_compatible(typecheck_type_t target_type, typecheck_type
 				return 0;
 		return 1;
 	}
+}
+
+const int typecheck_has_generics(typecheck_type_t type) {
+	if (type.type == TYPE_GENERIC_PARAM)
+		return 1;
+	else if (type.type >= TYPE_SUPER_ARRAY) {
+		for (uint_fast8_t i = 0; i < type.sub_type_count; i++)
+			if (typecheck_has_generics(type.sub_types[i]))
+				return 1;
+	}
+	return 0;
 }
