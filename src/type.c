@@ -55,6 +55,51 @@ const int typecheck_type_compatible(typecheck_type_t target_type, typecheck_type
 	}
 }
 
+static void typecheck_finalize_subtype(typecheck_type_t* sub_type, uint64_t* hash_ids, uint8_t* limit) {
+	if (sub_type->type == TYPE_GENERIC_PARAM) {
+		for (int_fast16_t i = *limit - 1; i >= 0; i--)
+			if (hash_ids[i] == sub_type->id) {
+				sub_type->id = i;
+				return;
+			}
+		hash_ids[*limit] = sub_type->id;
+		sub_type->id = (*limit)++;
+	}
+	else if (sub_type->type >= TYPE_SUPER_ARRAY) {
+		for (uint_fast8_t i = 0; i < sub_type->sub_type_count; i++)
+			typecheck_finalize_subtype(&sub_type->sub_types[i], hash_ids, limit);
+	}
+}
+
+uint64_t typecheck_finalize_generics(typecheck_type_t* type) {
+	uint64_t hash_ids[TYPE_MAX_SUBTYPES];
+	uint64_t hash_count = 0;
+	typecheck_finalize_subtype(type, &hash_ids, &hash_count);
+	return hash_count;
+}
+
+const int typecheck_match_typearg(typecheck_type_t* param_type, typecheck_type_t arg_type, typecheck_type_t* matched_type_args, int* inputted_type_args) {
+	if (param_type->type == TYPE_GENERIC_PARAM) {
+		if (!inputted_type_args[param_type->id]) {
+			matched_type_args[param_type->id] = arg_type;
+			inputted_type_args[param_type->id] = 1;
+			return copy_typecheck_type(param_type, arg_type);
+		}
+		return typecheck_type_compatible(matched_type_args[param_type->id], arg_type);
+	}
+	else {
+		if (param_type->type != arg_type.type)
+			return 0;
+		if (param_type->type >= TYPE_SUPER_ARRAY) {
+			if (param_type->sub_type_count != arg_type.sub_type_count)
+				return 0;
+			for (uint_fast8_t i = 0; i < param_type->sub_type_count; i++)
+				ESCAPE_ON_NULL(typecheck_match_typearg(&param_type->sub_types[i], arg_type.sub_types[i], matched_type_args, inputted_type_args));
+		}
+	}
+	return 1;
+}
+
 const int typecheck_has_generics(typecheck_type_t type) {
 	if (type.type == TYPE_GENERIC_PARAM)
 		return 1;

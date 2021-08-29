@@ -39,6 +39,9 @@ const int copy_typecheck_type(typecheck_type_t* dest, typecheck_type_t src);
 const int type_decl_sub_type(typecheck_type_t* super_type, typecheck_type_t sub_type);
 const int typecheck_type_compatible(typecheck_type_t target_type, typecheck_type_t match_type);
 
+uint64_t typecheck_finalize_generics(typecheck_type_t* type);
+const int typecheck_match_typearg(typecheck_type_t* param_type, typecheck_type_t arg_type, typecheck_type_t* matched_type_args, int* inputted_type_args);
+
 const int typecheck_has_generics(typecheck_type_t type);
 
 #endif // !TYPE

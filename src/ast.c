@@ -572,6 +572,7 @@ static const int parse_proc_lit(ast_t* ast, ast_value_t* value) {
 
 	ESCAPE_ON_NULL(parse_code_block(ast, &value->data.procedure->exec_block, &current_reg, &value->data.procedure->exec_block.register_limit, 1, 0, typecheck_has_generics(value->type)));
 	free_typecheck_type(&value->data.procedure->return_type);
+	typecheck_finalize_generics(&value->type);
 	PANIC_ON_NULL(copy_typecheck_type(&value->data.procedure->return_type, value->type.sub_types[0]), ast, ERROR_OUT_OF_MEMORY);
 
 	ast_var_cache_close_frame(ast);
@@ -786,12 +787,17 @@ static const int parse_value(ast_t* ast, ast_value_t* value, int allow_generics)
 			ast_value_t proc_call_val = {
 				.value_type = AST_VALUE_PROC_CALL,
 			};
-			copy_typecheck_type(&proc_call_val.type, value->type.sub_types[0]);
 			PANIC_ON_NULL(proc_call_val.data.proc_call = malloc(sizeof(ast_call_proc_t)), ast, ERROR_OUT_OF_MEMORY);
 			
 			ast_call_proc_t* proc_call = proc_call_val.data.proc_call;
 			proc_call->procedure = *value;
 			proc_call->argument_count = 0;
+
+			typecheck_type_t substituted_value_type;
+			copy_typecheck_type(&substituted_value_type, value->type);
+
+			typecheck_type_t* match_types = malloc(TYPE_MAX_SUBTYPES * sizeof(typecheck_type_t));
+			int* match_flags = calloc(TYPE_MAX_SUBTYPES, sizeof(int));
 
 			do {
 				READ_TOK;
@@ -801,9 +807,12 @@ static const int parse_value(ast_t* ast, ast_value_t* value, int allow_generics)
 					PANIC(ast, ERROR_UNEXPECTED_ARGUMENT_LENGTH);
 				
 				ESCAPE_ON_NULL(parse_expression(ast, &proc_call->arguments[proc_call->argument_count++], 0, allow_generics));
-				if (!typecheck_type_compatible(value->type.sub_types[proc_call->argument_count], proc_call->arguments[proc_call->argument_count - 1].type))
+				
+				if (typecheck_match_typearg(&substituted_value_type.sub_types[proc_call->argument_count], proc_call->arguments[proc_call->argument_count - 1].type, match_types, match_flags))
 					PANIC(ast, ERROR_UNEXPECTED_TYPE);
 			} while (ast->scanner.last_tok.type == TOK_COMMA);
+			
+
 			
 			if (proc_call->argument_count != value->type.sub_type_count - 1)
 				PANIC(ast, ERROR_UNEXPECTED_ARGUMENT_LENGTH);
